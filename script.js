@@ -17,8 +17,7 @@ uploadArea.addEventListener('dragleave', e => {
 uploadArea.addEventListener('drop', e => {
     e.preventDefault();
     uploadArea.style.background = "transparent";
-    const files = e.dataTransfer.files;
-    handleFiles(files);
+    handleFiles(e.dataTransfer.files);
 });
 
 // Click to select
@@ -33,15 +32,30 @@ function handleFiles(files) {
 
         const reader = new FileReader();
         reader.onload = e => {
+            const wrapper = document.createElement('div');
+            wrapper.classList.add('image-wrapper');
+
             const img = document.createElement('img');
             img.src = e.target.result;
-            preview.appendChild(img);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.innerText = '×';
+            removeBtn.classList.add('remove-btn');
+            removeBtn.onclick = () => {
+                const index = images.indexOf(file);
+                if (index > -1) images.splice(index, 1);
+                wrapper.remove();
+            }
+
+            wrapper.appendChild(img);
+            wrapper.appendChild(removeBtn);
+            preview.appendChild(wrapper);
         }
         reader.readAsDataURL(file);
     }
 }
 
-// Convert to PDF
+// Convert to PDF with centered images
 convertBtn.addEventListener('click', async () => {
     if (!images.length) {
         alert('Please upload at least one image!');
@@ -53,11 +67,22 @@ convertBtn.addEventListener('click', async () => {
 
     for (let i = 0; i < images.length; i++) {
         const img = await loadImage(images[i]);
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (img.height * pdfWidth) / img.width;
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        // Scale image to fit page
+        let imgWidth = img.width;
+        let imgHeight = img.height;
+        const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
+        imgWidth *= ratio;
+        imgHeight *= ratio;
+
+        // Center image on page
+        const x = (pageWidth - imgWidth) / 2;
+        const y = (pageHeight - imgHeight) / 2;
 
         if (i > 0) pdf.addPage();
-        pdf.addImage(img, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        pdf.addImage(img, 'JPEG', x, y, imgWidth, imgHeight);
     }
 
     pdf.save('images.pdf');
@@ -75,3 +100,4 @@ function loadImage(file) {
         reader.readAsDataURL(file);
     });
 }
+
